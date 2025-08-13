@@ -64,7 +64,7 @@ We may update this privacy policy from time to time. Any changes will be reflect
 
 ## Open Source
 
-ShopContext is open source software. You can review the source code at: https://github.com/[your-username]/shopcontext
+ShopContext is open source software. You can review the source code at: https://github.com/kalenjordan/shopcontext
 
 ## Contact
 
