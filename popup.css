@@ -240,7 +240,7 @@ h3 {
 }
 
 .toggle-button.development {
-  background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
 }
 
 .toggle-button.production {
