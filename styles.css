@@ -1,0 +1,23 @@
+/* Shopify Store Type Indicator Styles */
+
+/* Production store header styling */
+.shopify-prod-header {
+  transition: background-color 0.3s ease;
+}
+
+/* Optional: Add a subtle animation to the production header */
+@keyframes prodHeaderPulse {
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(0.95);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.shopify-prod-header {
+  animation: prodHeaderPulse 4s infinite subtle;
+}

@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Shop Context",
+  "version": "1.0.0",
+  "description": "Shows whether a Shopify store is a development or production store",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://*.myshopify.com/*",
+    "https://*.shopify.com/*",
+    "https://*.myshopify.io/*",
+    "https://admin.shopify.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.myshopify.com/*",
+        "https://*.shopify.com/*",
+        "https://*.myshopify.io/*",
+        "https://admin.shopify.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

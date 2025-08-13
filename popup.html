@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <h2>Shop Context</h2>
+    
+    <div class="current-status">
+      <p class="status-label">Current Store:</p>
+      <p id="current-url" class="store-url">Not on a Shopify store</p>
+      <div id="store-type" class="store-type">
+        <span class="type-icon"></span>
+        <span class="type-text"></span>
+      </div>
+      
+      <div class="custom-name-section">
+        <label for="custom-name" class="custom-name-label">Custom Store Name:</label>
+        <div class="custom-name-input-group">
+          <input type="text" id="custom-name" class="custom-name-input" placeholder="e.g., Main Production Store">
+          <button id="save-name" class="save-name-btn">Save</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button id="toggle-btn" class="toggle-button">
+        Toggle Store Type (Dev/Prod)
+      </button>
+      <div class="hint">Tip: Right-click on any Shopify page to quickly toggle store type</div>
+    </div>
+    
+    <div class="global-settings">
+      <h3>Global Settings</h3>
+      <div class="production-color-section">
+        <label for="prod-color" class="color-label">Production Header Color (All Stores):</label>
+        <div class="color-input-group">
+          <input type="color" id="prod-color" class="color-input" value="#4B0082">
+          <input type="text" id="prod-color-text" class="color-text-input" value="#4B0082">
+          <button id="save-color" class="save-color-btn">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
