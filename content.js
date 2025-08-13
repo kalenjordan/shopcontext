@@ -25,10 +25,21 @@
 
   // Function to inject custom store name into navigation
   let injectCustomNameTimeout = null;
-  async function injectCustomStoreName(retryCount = 0) {
+  async function injectCustomStoreName(retryCount = 0, immediate = false) {
     // Clear any pending injections
     if (injectCustomNameTimeout) {
       clearTimeout(injectCustomNameTimeout);
+    }
+
+    // If immediate flag is set, skip debounce (used for updates from popup)
+    if (immediate) {
+      // Check if custom name already exists
+      if (document.getElementById('shop-context-custom-name')) {
+        console.log('[Shop Context] Custom name already present, removing for update');
+        document.getElementById('shop-context-custom-name').remove();
+      }
+      await injectCustomStoreNameInternal(retryCount);
+      return;
     }
 
     // Debounce - wait a bit to let any other calls settle
@@ -369,7 +380,8 @@
     } else if (request.action === 'reloadIndicator') {
       init();
     } else if (request.action === 'updateCustomName') {
-      injectCustomStoreName();
+      // Use immediate mode for instant update
+      injectCustomStoreName(0, true);
     } else if (request.action === 'updateProductionColor') {
       // Re-apply the indicators with the new color
       applyStoreTypeIndicators(currentStoreType);
@@ -394,9 +406,14 @@
     }
 
     // Check if Sales channels button appears and custom name is missing
-    const salesChannelsExists = Array.from(document.querySelectorAll('button')).find(btn => 
-                                 btn.textContent?.includes('Sales channels')
-                               );
+    const salesChannelsExists = Array.from(document.querySelectorAll('button')).find(btn => {
+      const text = btn.textContent || btn.innerText;
+      return text && text.includes('Sales channels');
+    }) || Array.from(document.querySelectorAll('span')).find(span => {
+      const text = span.textContent || span.innerText;
+      return text && text.trim() === 'Sales channels';
+    })?.closest('button');
+    
     if (!document.getElementById('shop-context-custom-name') && salesChannelsExists) {
       console.log('[Shop Context] Sales channels appeared, injecting custom name');
       injectCustomStoreName();
