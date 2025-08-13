@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const elements = {
     currentUrl: document.getElementById('current-url'),
-    storeType: document.getElementById('store-type'),
     toggleBtn: document.getElementById('toggle-btn'),
     customNameInput: document.getElementById('custom-name'),
     saveNameBtn: document.getElementById('save-name'),
@@ -54,10 +53,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (!isShopifyUrl(currentUrl)) {
       elements.currentUrl.textContent = 'Not on a Shopify store';
-      elements.storeType.className = 'store-type unknown';
-      elements.storeType.querySelector('.type-icon').textContent = '❓';
-      elements.storeType.querySelector('.type-text').textContent = 'Not a Shopify Store';
       elements.toggleBtn.disabled = true;
+      elements.toggleBtn.textContent = 'Not a Shopify Store';
+      elements.toggleBtn.className = 'toggle-button disabled';
       elements.customNameInput.disabled = true;
       elements.saveNameBtn.disabled = true;
       elements.prodColorInput.disabled = true;
@@ -109,9 +107,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Update store type display
   function updateStoreTypeDisplay(isDev) {
-    elements.storeType.className = `store-type ${isDev ? 'development' : 'production'}`;
-    elements.storeType.querySelector('.type-icon').textContent = isDev ? '🛠️' : '🚀';
-    elements.storeType.querySelector('.type-text').textContent = isDev ? 'Development Store' : 'Production Store';
+    if (isDev) {
+      elements.toggleBtn.textContent = '🛠️  Development Store';
+      elements.toggleBtn.className = 'toggle-button development';
+    } else {
+      elements.toggleBtn.textContent = '🚀  Production Store';
+      elements.toggleBtn.className = 'toggle-button production';
+    }
   }
   
   // Load and display overrides list
@@ -177,6 +179,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   
+  // Add Enter key support for color text input
+  elements.prodColorText.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      elements.saveColorBtn.click();
+    }
+  });
+  
+  // Add Enter key support for custom name input
+  elements.customNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      elements.saveNameBtn.click();
+    }
+  });
+  
   // Save global production color
   elements.saveColorBtn.addEventListener('click', async () => {
     const color = elements.prodColorInput.value;
@@ -193,11 +209,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch {}
     }
     
-    // Show feedback
-    elements.saveColorBtn.textContent = '✓ Applied';
+    // Show feedback without changing button text (to avoid layout shift)
+    const originalText = elements.saveColorBtn.textContent;
+    elements.saveColorBtn.style.background = '#00a878';
     setTimeout(() => {
-      elements.saveColorBtn.textContent = 'Apply';
-    }, 2000);
+      elements.saveColorBtn.style.background = '';
+    }, 1000);
   });
   
   // Save custom name
@@ -224,11 +241,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch {}
     }
     
-    // Show feedback
-    elements.saveNameBtn.textContent = '✓ Saved';
+    // Show feedback without changing button text (to avoid layout shift)
+    const originalText = elements.saveNameBtn.textContent;
+    elements.saveNameBtn.style.background = '#00a878';
     setTimeout(() => {
-      elements.saveNameBtn.textContent = 'Save';
-    }, 2000);
+      elements.saveNameBtn.style.background = '';
+    }, 1000);
   });
   
   // Initial load

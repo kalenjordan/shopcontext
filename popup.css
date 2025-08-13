@@ -236,11 +236,25 @@ h3 {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
-.toggle-button:hover {
-  background: #006e52;
+.toggle-button.development {
+  background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+}
+
+.toggle-button.production {
+  background: linear-gradient(135deg, #4B0082 0%, #6a0dad 100%);
+}
+
+.toggle-button.disabled {
+  background: #d0d0d0;
+  cursor: not-allowed;
+}
+
+.toggle-button:hover:not(.disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .toggle-button:disabled {

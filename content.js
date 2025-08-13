@@ -44,7 +44,7 @@
   }
 
   async function injectCustomStoreNameInternal(retryCount = 0) {
-    console.log(`[Shop Context] Injecting custom name, retry: ${retryCount}`);
+    console.log(`[Shop Context] Waiting for navigation to be ready, retry: ${retryCount}`);
 
     // Get custom name from storage
     const domain = getCurrentDomain();
@@ -56,16 +56,53 @@
 
     if (!customName) return;
 
+    // Wait for Sales channels button to ensure navigation is fully loaded
+    // Try multiple methods to find the Sales channels button
+    let salesChannelsButton = Array.from(document.querySelectorAll('button')).find(btn => {
+      const text = btn.textContent || btn.innerText;
+      return text && text.includes('Sales channels');
+    });
+    
+    // Also check for the span specifically
+    if (!salesChannelsButton) {
+      const salesChannelsSpan = Array.from(document.querySelectorAll('span')).find(span => {
+        const text = span.textContent || span.innerText;
+        return text && text.trim() === 'Sales channels';
+      });
+      if (salesChannelsSpan) {
+        salesChannelsButton = salesChannelsSpan.closest('button');
+      }
+    }
+
+    if (!salesChannelsButton) {
+      if (retryCount < 30) { // Increased retry count since we're waiting for full load
+        console.log('[Shop Context] Sales channels not found, navigation not ready yet...');
+        setTimeout(() => injectCustomStoreNameInternal(retryCount + 1), 500);
+      } else {
+        console.log('[Shop Context] Sales channels never appeared after 30 retries, trying to inject anyway');
+        // Fall back to original logic if Sales channels never appears
+        const homeLink = document.querySelector('a[href*="/store/"][class*="Navigation__Item"]') ||
+                         document.querySelector('a[href*="/admin"][class*="Navigation__Item"]') ||
+                         document.querySelector('.Polaris-Navigation__Item');
+        if (homeLink) {
+          console.log('[Shop Context] Found navigation without Sales channels, proceeding with injection');
+          // Continue with the injection logic below
+        } else {
+          return;
+        }
+      }
+      if (retryCount < 30) return;
+    } else {
+      console.log('[Shop Context] Sales channels found, navigation is ready');
+    }
+
     // Find the navigation by looking for the Home link
     const homeLink = document.querySelector('a[href*="/store/"][class*="Navigation__Item"]') ||
                      document.querySelector('a[href*="/admin"][class*="Navigation__Item"]') ||
                      document.querySelector('.Polaris-Navigation__Item');
 
     if (!homeLink) {
-      if (retryCount < 10) {
-        console.log('[Shop Context] Navigation not found, retrying...');
-        setTimeout(() => injectCustomStoreNameInternal(retryCount + 1), 1000);
-      }
+      console.log('[Shop Context] Home link not found even though Sales channels is present');
       return;
     }
 
@@ -356,10 +393,12 @@
       setTimeout(init, 1000); // Wait a bit for page to load
     }
 
-    // Also check if navigation menu appears and custom name is missing
-    const navExists = document.querySelector('a[href*="/store/"]') ||
-                     document.querySelector('.Polaris-Navigation__Item');
-    if (!document.getElementById('shop-context-custom-name') && navExists) {
+    // Check if Sales channels button appears and custom name is missing
+    const salesChannelsExists = Array.from(document.querySelectorAll('button')).find(btn => 
+                                 btn.textContent?.includes('Sales channels')
+                               );
+    if (!document.getElementById('shop-context-custom-name') && salesChannelsExists) {
+      console.log('[Shop Context] Sales channels appeared, injecting custom name');
       injectCustomStoreName();
     }
   }).observe(document, { subtree: true, childList: true });
