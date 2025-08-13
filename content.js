@@ -1,7 +1,7 @@
 (() => {
   console.log('[Shop Context] Extension loaded');
   let currentStoreType = null;
-  
+
   // Get domain from current URL
   function getCurrentDomain() {
     // For admin.shopify.com URLs, extract the store handle from the path
@@ -13,7 +13,7 @@
     }
     return window.location.hostname;
   }
-  
+
   // Check for manual override
   async function getManualOverride() {
     const domain = getCurrentDomain();
@@ -21,85 +21,88 @@
     const overrides = data.overrides || {};
     return overrides[domain];
   }
-  
-  
+
+
   // Function to inject custom store name into navigation
-  let isInjectingCustomName = false;
+  let injectCustomNameTimeout = null;
   async function injectCustomStoreName(retryCount = 0) {
-    // Prevent concurrent injections
-    if (isInjectingCustomName) {
-      console.log('[Shop Context] Already injecting custom name, skipping');
-      return;
+    // Clear any pending injections
+    if (injectCustomNameTimeout) {
+      clearTimeout(injectCustomNameTimeout);
     }
-    
+
+    // Debounce - wait a bit to let any other calls settle
+    injectCustomNameTimeout = setTimeout(async () => {
+      // Check if custom name already exists
+      if (document.getElementById('shop-context-custom-name')) {
+        console.log('[Shop Context] Custom name already present, skipping');
+        return;
+      }
+
+      await injectCustomStoreNameInternal(retryCount);
+    }, 100); // 100ms debounce
+  }
+
+  async function injectCustomStoreNameInternal(retryCount = 0) {
     console.log(`[Shop Context] Injecting custom name, retry: ${retryCount}`);
-    
-    // Remove ALL existing custom names if present
-    const existingCustomNames = document.querySelectorAll('#shop-context-custom-name');
-    existingCustomNames.forEach(el => el.remove());
-    
+
     // Get custom name from storage
     const domain = getCurrentDomain();
     const data = await chrome.storage.local.get('customNames');
     const customNames = data.customNames || {};
     const customName = customNames[domain];
-    
+
     console.log(`[Shop Context] Custom name for ${domain}: ${customName}`);
-    
-    if (!customName) {
-      isInjectingCustomName = false;
-      return;
-    }
-    
-    isInjectingCustomName = true;
-    
+
+    if (!customName) return;
+
     // Find the navigation by looking for the Home link
     const homeLink = document.querySelector('a[href*="/store/"][class*="Navigation__Item"]') ||
                      document.querySelector('a[href*="/admin"][class*="Navigation__Item"]') ||
                      document.querySelector('.Polaris-Navigation__Item');
-    
+
     if (!homeLink) {
       if (retryCount < 10) {
         console.log('[Shop Context] Navigation not found, retrying...');
-        isInjectingCustomName = false;
-        setTimeout(() => injectCustomStoreName(retryCount + 1), 1000);
-      } else {
-        isInjectingCustomName = false;
+        setTimeout(() => injectCustomStoreNameInternal(retryCount + 1), 1000);
       }
       return;
     }
-    
+
     // Find the list item containing the home link
     let homeItem = homeLink.closest('li');
     if (!homeItem) {
       console.log('[Shop Context] Could not find home list item');
-      isInjectingCustomName = false;
       return;
     }
-    
+
     // Get the parent list
     const navList = homeItem.parentElement;
     if (!navList) {
       console.log('[Shop Context] Could not find navigation list');
-      isInjectingCustomName = false;
       return;
     }
-    
+
     console.log('[Shop Context] Found navigation, inserting custom name');
-    
+
     // Create custom name menu item - match native navigation style
     const customNameItem = document.createElement('li');
     customNameItem.id = 'shop-context-custom-name';
     customNameItem.className = homeItem.className || 'Polaris-Navigation__ListItem';
-    
+
     // Clone the Home item's structure but modify the content
     const homeWrapper = homeItem.querySelector('[class*="ItemWrapper"]');
     const homeInnerWrapper = homeItem.querySelector('[class*="ItemInnerWrapper"]');
-    
+
+    // Remove selected state from classes if present
+    const wrapperClass = homeWrapper?.className || 'Polaris-Navigation__ItemWrapper';
+    let innerWrapperClass = homeInnerWrapper?.className || 'Polaris-Navigation__ItemInnerWrapper';
+    innerWrapperClass = innerWrapperClass.replace('Polaris-Navigation__ItemInnerWrapper--selected', 'Polaris-Navigation__ItemInnerWrapper');
+
     customNameItem.innerHTML = `
-      <div class="${homeWrapper?.className || 'Polaris-Navigation__ItemWrapper'}">
-        <div class="${homeInnerWrapper?.className || 'Polaris-Navigation__ItemInnerWrapper'}">
-          <div class="Polaris-Navigation__Item" style="cursor: default; pointer-events: none;">
+      <div class="${wrapperClass}">
+        <div class="${innerWrapperClass}">
+          <div class="Polaris-Navigation__Item" style="cursor: pointer;">
             <div class="Polaris-Navigation__Icon">
               <span class="Polaris-Icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="Polaris-Icon__Svg" focusable="false" aria-hidden="true">
@@ -117,24 +120,26 @@
         </div>
       </div>
     `;
-    
+
+    // Add click handler to open extension popup
+    customNameItem.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'openPopup' });
+    });
+
     // Insert before the Home item
     navList.insertBefore(customNameItem, homeItem);
-    
-    // Reset flag after successful injection
-    isInjectingCustomName = false;
   }
-  
+
   // Function to apply visual indicators based on store type
   async function applyStoreTypeIndicators(isDev, retryCount = 0) {
     console.log(`[Shop Context] Applying indicators - isDev: ${isDev}, retry: ${retryCount}`);
-    
+
     // Get global production color from storage
     const data = await chrome.storage.local.get('globalProductionColor');
     const customColor = data.globalProductionColor || '#4B0082';
-    
+
     console.log(`[Shop Context] Global production color: ${customColor}`);
-    
+
     // Convert hex to rgba with opacity
     const hexToRgba = (hex, opacity) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -142,20 +147,12 @@
       const b = parseInt(hex.slice(5, 7), 16);
       return `rgba(${r}, ${g}, ${b}, ${opacity})`;
     };
-    
-    // Find the ClickMask element - it's a sibling of the TopBar
-    let clickMask = document.querySelector('[class*="ClickMask"]');
-    
-    // If not found, look for it within the TopBar structure
-    if (!clickMask) {
-      const topBarFrame = document.querySelector('.Polaris-Frame__TopBar, #AppFrameTopBar');
-      if (topBarFrame) {
-        clickMask = topBarFrame.querySelector('[class*="ClickMask"]');
-      }
-    }
-    
-    // Also find the TopBar itself for fallback
+
+    // Find the TopBar first
     let topBar = document.querySelector('[class*="TopBar"][class*="_TopBar_"]');
+    if (!topBar) {
+      topBar = document.querySelector('[class*="TopBar"]');
+    }
     if (!topBar) {
       const themeContainers = document.querySelectorAll('.Polaris-ThemeProvider--themeContainer, .themeprovider');
       for (const container of themeContainers) {
@@ -166,27 +163,64 @@
         }
       }
     }
-    
+
+    // Find the ClickMask element - search more thoroughly
+    let clickMask = null;
+
+    // Strategy 1: Look for any element with ClickMask in its class
+    const allElements = document.querySelectorAll('*');
+    for (const element of allElements) {
+      if (element.className && typeof element.className === 'string' && element.className.includes('ClickMask')) {
+        clickMask = element;
+        console.log('[Shop Context] Found ClickMask with class:', element.className);
+        break;
+      }
+    }
+
+    // Strategy 2: If TopBar exists, check its children and siblings more thoroughly
+    if (!clickMask && topBar) {
+      // Check all descendants
+      const descendants = topBar.querySelectorAll('*');
+      for (const desc of descendants) {
+        if (desc.className && typeof desc.className === 'string' && desc.className.includes('ClickMask')) {
+          clickMask = desc;
+          break;
+        }
+      }
+
+      // Check siblings
+      if (!clickMask && topBar.parentElement) {
+        const siblings = topBar.parentElement.querySelectorAll('*');
+        for (const sibling of siblings) {
+          if (sibling.className && typeof sibling.className === 'string' && sibling.className.includes('ClickMask')) {
+            clickMask = sibling;
+            break;
+          }
+        }
+      }
+    }
+
     console.log(`[Shop Context] ClickMask found: ${!!clickMask}, TopBar found: ${!!topBar}`);
-    
-    // If elements not found and we haven't retried too many times, retry after a delay
-    if (!clickMask && !topBar && retryCount < 10) {
-      console.log(`[Shop Context] Elements not found, retrying in 500ms...`);
+
+    // If ClickMask not found and we haven't retried too many times, retry after a delay
+    // We'll retry more times for ClickMask since it appears later
+    if (!clickMask && retryCount < 20) {
+      console.log(`[Shop Context] ClickMask not found, retrying in 500ms... (attempt ${retryCount + 1}/20)`);
       setTimeout(() => applyStoreTypeIndicators(isDev, retryCount + 1), 500);
       return;
     }
-    
+
     // Remove existing styling from all potential elements
     document.querySelectorAll('[class*="ClickMask"], [class*="TopBar"]').forEach(el => {
       el.style.removeProperty('background-color');
       el.style.removeProperty('background');
       el.classList.remove('shopify-prod-header');
     });
-    
+
     // If production store, add custom color
     if (!isDev) {
       const bgColor = hexToRgba(customColor, 0.85);
-      
+
       // Apply to ClickMask if found (preferred)
       if (clickMask) {
         clickMask.style.setProperty('background-color', bgColor, 'important');
@@ -196,11 +230,11 @@
         clickMask.style.setProperty('left', '0', 'important');
         clickMask.style.setProperty('right', '0', 'important');
         clickMask.style.setProperty('bottom', '0', 'important');
-        clickMask.style.setProperty('z-index', '1', 'important');
+        // clickMask.style.setProperty('z-index', '1', 'important');
         clickMask.classList.add('shopify-prod-header');
         console.log(`[Shop Context] Applied production color to ClickMask: ${bgColor}`);
       }
-      
+
       // Also apply to TopBar as fallback
       if (topBar && !clickMask) {
         topBar.style.setProperty('background-color', bgColor, 'important');
@@ -208,24 +242,24 @@
         console.log(`[Shop Context] Applied production color to TopBar (fallback): ${bgColor}`);
       }
     }
-    
+
     currentStoreType = isDev;
   }
-  
+
   // Toggle store type
   async function toggleStoreType() {
     const newType = !currentStoreType;
     const domain = getCurrentDomain();
-    
+
     // Save override
     const data = await chrome.storage.local.get('overrides');
     const overrides = data.overrides || {};
     overrides[domain] = newType;
     await chrome.storage.local.set({ overrides });
-    
+
     // Update visual indicators
     applyStoreTypeIndicators(newType);
-    
+
     // Update storage
     chrome.storage.local.set({
       currentStore: {
@@ -235,7 +269,7 @@
       }
     });
   }
-  
+
   // Function to check if we're on a Shopify store
   function isShopifyStore() {
     // Check various Shopify indicators
@@ -246,31 +280,31 @@
            window.location.hostname.includes('myshopify.io') ||
            window.location.hostname.includes('shopify.com');
   }
-  
+
   // Function to initialize the extension
   async function init() {
     console.log('[Shop Context] Initializing...');
-    
+
     if (!isShopifyStore()) {
       console.log('[Shop Context] Not a Shopify store, extension inactive');
       return;
     }
-    
+
     // Check for saved state for this store
     const domain = getCurrentDomain();
     const savedState = await getManualOverride();
     let isDev = true; // Default to dev
-    
+
     if (savedState !== undefined) {
       isDev = savedState;
     }
-    
+
     console.log(`[Shop Context] Store: ${domain}, Type: ${isDev ? 'Development' : 'Production'}`);
-    
+
     // Apply indicators with a small delay to ensure DOM is ready
     setTimeout(() => applyStoreTypeIndicators(isDev), 100);
     injectCustomStoreName();
-    
+
     // Store the detection result
     chrome.storage.local.set({
       currentStore: {
@@ -280,7 +314,7 @@
       }
     });
   }
-  
+
   // Listen for messages from popup/background
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggleStoreType') {
@@ -305,14 +339,14 @@
     }
     sendResponse({ success: true });
   });
-  
+
   // Run on page load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-  
+
   // Re-run on page navigation (for SPAs)
   let lastUrl = location.href;
   new MutationObserver(() => {
@@ -321,9 +355,9 @@
       lastUrl = url;
       setTimeout(init, 1000); // Wait a bit for page to load
     }
-    
+
     // Also check if navigation menu appears and custom name is missing
-    const navExists = document.querySelector('a[href*="/store/"]') || 
+    const navExists = document.querySelector('a[href*="/store/"]') ||
                      document.querySelector('.Polaris-Navigation__Item');
     if (!document.getElementById('shop-context-custom-name') && navExists) {
       injectCustomStoreName();

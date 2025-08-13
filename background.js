@@ -20,7 +20,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-// Handle messages from popup
+// Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getActiveTabUrl") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -29,5 +29,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     });
     return true; // Keep channel open for async response
+  } else if (request.action === "openPopup") {
+    // Open the extension popup programmatically
+    chrome.action.openPopup();
   }
 });
