@@ -1,6 +1,5 @@
 (() => {
-  console.log('[Shop Context] Extension loaded');
-  let currentStoreType = null;
+  let currentStoreMode = 'default'; // 'default', 'development', or 'production'
 
   // Get domain from current URL
   function getCurrentDomain() {
@@ -35,8 +34,7 @@
     if (immediate) {
       // Check if custom name already exists
       if (document.getElementById('shop-context-custom-name')) {
-        console.log('[Shop Context] Custom name already present, removing for update');
-        document.getElementById('shop-context-custom-name').remove();
+          document.getElementById('shop-context-custom-name').remove();
       }
       await injectCustomStoreNameInternal(retryCount);
       return;
@@ -46,7 +44,6 @@
     injectCustomNameTimeout = setTimeout(async () => {
       // Check if custom name already exists
       if (document.getElementById('shop-context-custom-name')) {
-        console.log('[Shop Context] Custom name already present, skipping');
         return;
       }
 
@@ -55,15 +52,11 @@
   }
 
   async function injectCustomStoreNameInternal(retryCount = 0) {
-    console.log(`[Shop Context] Waiting for navigation to be ready, retry: ${retryCount}`);
-
     // Get custom name from storage
     const domain = getCurrentDomain();
     const data = await chrome.storage.local.get('customNames');
     const customNames = data.customNames || {};
     const customName = customNames[domain];
-
-    console.log(`[Shop Context] Custom name for ${domain}: ${customName}`);
 
     if (!customName) return;
 
@@ -87,16 +80,13 @@
 
     if (!salesChannelsButton) {
       if (retryCount < 30) { // Increased retry count since we're waiting for full load
-        console.log('[Shop Context] Sales channels not found, navigation not ready yet...');
         setTimeout(() => injectCustomStoreNameInternal(retryCount + 1), 500);
       } else {
-        console.log('[Shop Context] Sales channels never appeared after 30 retries, trying to inject anyway');
         // Fall back to original logic if Sales channels never appears
         const homeLink = document.querySelector('a[href*="/store/"][class*="Navigation__Item"]') ||
                          document.querySelector('a[href*="/admin"][class*="Navigation__Item"]') ||
                          document.querySelector('.Polaris-Navigation__Item');
         if (homeLink) {
-          console.log('[Shop Context] Found navigation without Sales channels, proceeding with injection');
           // Continue with the injection logic below
         } else {
           return;
@@ -104,7 +94,6 @@
       }
       if (retryCount < 30) return;
     } else {
-      console.log('[Shop Context] Sales channels found, navigation is ready');
     }
 
     // Find the navigation by looking for the Home link
@@ -113,25 +102,21 @@
                      document.querySelector('.Polaris-Navigation__Item');
 
     if (!homeLink) {
-      console.log('[Shop Context] Home link not found even though Sales channels is present');
       return;
     }
 
     // Find the list item containing the home link
     let homeItem = homeLink.closest('li');
     if (!homeItem) {
-      console.log('[Shop Context] Could not find home list item');
       return;
     }
 
     // Get the parent list
     const navList = homeItem.parentElement;
     if (!navList) {
-      console.log('[Shop Context] Could not find navigation list');
       return;
     }
 
-    console.log('[Shop Context] Found navigation, inserting custom name');
 
     // Create custom name menu item - match native navigation style
     const customNameItem = document.createElement('li');
@@ -178,15 +163,71 @@
     navList.insertBefore(customNameItem, homeItem);
   }
 
-  // Function to apply visual indicators based on store type
-  async function applyStoreTypeIndicators(isDev, retryCount = 0) {
-    console.log(`[Shop Context] Applying indicators - isDev: ${isDev}, retry: ${retryCount}`);
+  // Store the original logo HTML
+  let originalLogoHTML = null;
 
-    // Get global production color from storage
-    const data = await chrome.storage.local.get('globalProductionColor');
-    const customColor = data.globalProductionColor || '#4B0082';
+  // Function to replace Shopify logo with shop name or restore it
+  async function replaceLogoWithShopName() {
+    // Find the logo wrapper
+    const logoWrapper = document.querySelector('[class*="_ShopifyLogoWrapper"]');
+    if (!logoWrapper) {
+      console.log('[Shop Context] Logo wrapper not found');
+      return;
+    }
 
-    console.log(`[Shop Context] Global production color: ${customColor}`);
+    // Save the original logo HTML if we haven't already
+    if (!originalLogoHTML && !logoWrapper.querySelector('#shop-context-custom-logo')) {
+      originalLogoHTML = logoWrapper.innerHTML;
+    }
+
+    // Get custom name from storage
+    const domain = getCurrentDomain();
+    const data = await chrome.storage.local.get('customNames');
+    const customNames = data.customNames || {};
+    const customName = customNames[domain];
+
+    // If there's a custom name, show it
+    if (customName && customName.trim() !== '') {
+      console.log(`[Shop Context] Replacing logo with custom name: ${customName}`);
+      
+      // Replace the logo wrapper content with custom name text
+      logoWrapper.innerHTML = `
+        <div id="shop-context-custom-logo" style="
+          display: flex;
+          align-items: center;
+          height: 100%;
+          color: var(--p-color-text);
+          font-size: 16px;
+          font-weight: 600;
+          white-space: nowrap;
+        ">
+          ${customName}
+        </div>
+      `;
+    } else {
+      // No custom name - restore the original Shopify logo if it was replaced
+      if (logoWrapper.querySelector('#shop-context-custom-logo') && originalLogoHTML) {
+        console.log('[Shop Context] Restoring original Shopify logo');
+        logoWrapper.innerHTML = originalLogoHTML;
+      }
+    }
+  }
+
+  // Function to apply visual indicators based on store mode
+  async function applyStoreTypeIndicators(mode, retryCount = 0) {
+    // Get global colors from storage
+    const data = await chrome.storage.local.get(['globalProductionColor', 'globalDevelopmentColor']);
+    const prodColor = data.globalProductionColor || '#24003D';
+    const devColor = data.globalDevelopmentColor || '#002407';
+    
+    // Determine which color to use based on mode
+    let customColor = null;
+    if (mode === 'development') {
+      customColor = devColor;
+    } else if (mode === 'production') {
+      customColor = prodColor;
+    }
+    // If mode is 'default', customColor remains null and no styling will be applied
 
     // Convert hex to rgba with opacity
     const hexToRgba = (hex, opacity) => {
@@ -220,7 +261,6 @@
     for (const element of allElements) {
       if (element.className && typeof element.className === 'string' && element.className.includes('ClickMask')) {
         clickMask = element;
-        console.log('[Shop Context] Found ClickMask with class:', element.className);
         break;
       }
     }
@@ -248,13 +288,10 @@
       }
     }
 
-    console.log(`[Shop Context] ClickMask found: ${!!clickMask}, TopBar found: ${!!topBar}`);
-
     // If ClickMask not found and we haven't retried too many times, retry after a delay
     // We'll retry more times for ClickMask since it appears later
     if (!clickMask && retryCount < 20) {
-      console.log(`[Shop Context] ClickMask not found, retrying in 500ms... (attempt ${retryCount + 1}/20)`);
-      setTimeout(() => applyStoreTypeIndicators(isDev, retryCount + 1), 500);
+      setTimeout(() => applyStoreTypeIndicators(mode, retryCount + 1), 500);
       return;
     }
 
@@ -263,10 +300,11 @@
       el.style.removeProperty('background-color');
       el.style.removeProperty('background');
       el.classList.remove('shopify-prod-header');
+      el.classList.remove('shopify-dev-header');
     });
 
-    // If production store, add custom color
-    if (!isDev) {
+    // Apply custom color only if not in default mode
+    if (customColor && mode !== 'default') {
       const bgColor = hexToRgba(customColor, 0.85);
 
       // Apply to ClickMask if found (preferred)
@@ -279,40 +317,54 @@
         clickMask.style.setProperty('right', '0', 'important');
         clickMask.style.setProperty('bottom', '0', 'important');
         // clickMask.style.setProperty('z-index', '1', 'important');
-        clickMask.classList.add('shopify-prod-header');
-        console.log(`[Shop Context] Applied production color to ClickMask: ${bgColor}`);
+        clickMask.classList.add(mode === 'development' ? 'shopify-dev-header' : 'shopify-prod-header');
       }
 
       // Also apply to TopBar as fallback
       if (topBar && !clickMask) {
         topBar.style.setProperty('background-color', bgColor, 'important');
-        topBar.classList.add('shopify-prod-header');
-        console.log(`[Shop Context] Applied production color to TopBar (fallback): ${bgColor}`);
+        topBar.classList.add(mode === 'development' ? 'shopify-dev-header' : 'shopify-prod-header');
       }
     }
 
-    currentStoreType = isDev;
+    currentStoreMode = mode;
   }
 
-  // Toggle store type
+  // Toggle store mode (cycles through default -> development -> production)
   async function toggleStoreType() {
-    const newType = !currentStoreType;
+    let newMode;
+    
+    // Cycle through the modes
+    switch(currentStoreMode) {
+      case 'default':
+        newMode = 'development';
+        break;
+      case 'development':
+        newMode = 'production';
+        break;
+      case 'production':
+        newMode = 'default';
+        break;
+      default:
+        newMode = 'default';
+    }
+    
     const domain = getCurrentDomain();
 
     // Save override
     const data = await chrome.storage.local.get('overrides');
     const overrides = data.overrides || {};
-    overrides[domain] = newType;
+    overrides[domain] = newMode;
     await chrome.storage.local.set({ overrides });
 
     // Update visual indicators
-    applyStoreTypeIndicators(newType);
+    applyStoreTypeIndicators(newMode);
 
     // Update storage
     chrome.storage.local.set({
       currentStore: {
         url: window.location.href,
-        isDevelopment: newType,
+        mode: newMode,
         timestamp: Date.now()
       }
     });
@@ -331,33 +383,35 @@
 
   // Function to initialize the extension
   async function init() {
-    console.log('[Shop Context] Initializing...');
-
     if (!isShopifyStore()) {
-      console.log('[Shop Context] Not a Shopify store, extension inactive');
       return;
     }
 
     // Check for saved state for this store
     const domain = getCurrentDomain();
     const savedState = await getManualOverride();
-    let isDev = true; // Default to dev
+    let mode = 'default'; // Default to 'default' mode (no visual changes)
 
     if (savedState !== undefined) {
-      isDev = savedState;
+      // Handle legacy boolean values
+      if (typeof savedState === 'boolean') {
+        mode = savedState ? 'development' : 'production';
+      } else {
+        mode = savedState;
+      }
     }
 
-    console.log(`[Shop Context] Store: ${domain}, Type: ${isDev ? 'Development' : 'Production'}`);
-
     // Apply indicators with a small delay to ensure DOM is ready
-    setTimeout(() => applyStoreTypeIndicators(isDev), 100);
-    injectCustomStoreName();
+    setTimeout(() => applyStoreTypeIndicators(mode), 100);
+    
+    // Replace Shopify logo with shop name
+    setTimeout(() => replaceLogoWithShopName(), 200);
 
     // Store the detection result
     chrome.storage.local.set({
       currentStore: {
         url: window.location.href,
-        isDevelopment: isDev,
+        mode: mode,
         timestamp: Date.now()
       }
     });
@@ -367,24 +421,25 @@
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggleStoreType') {
       toggleStoreType();
-    } else if (request.action === 'setStoreType') {
-      applyStoreTypeIndicators(request.isDevelopment);
+    } else if (request.action === 'setStoreMode') {
+      applyStoreTypeIndicators(request.mode);
+      currentStoreMode = request.mode;
       // Update storage
       chrome.storage.local.set({
         currentStore: {
           url: window.location.href,
-          isDevelopment: request.isDevelopment,
+          mode: request.mode,
           timestamp: Date.now()
         }
       });
     } else if (request.action === 'reloadIndicator') {
       init();
     } else if (request.action === 'updateCustomName') {
-      // Use immediate mode for instant update
-      injectCustomStoreName(0, true);
-    } else if (request.action === 'updateProductionColor') {
+      // Update the logo immediately with the new custom name
+      replaceLogoWithShopName();
+    } else if (request.action === 'updateProductionColor' || request.action === 'updateStoreColor') {
       // Re-apply the indicators with the new color
-      applyStoreTypeIndicators(currentStoreType);
+      applyStoreTypeIndicators(currentStoreMode);
     }
     sendResponse({ success: true });
   });
@@ -405,18 +460,13 @@
       setTimeout(init, 1000); // Wait a bit for page to load
     }
 
-    // Check if Sales channels button appears and custom name is missing
-    const salesChannelsExists = Array.from(document.querySelectorAll('button')).find(btn => {
-      const text = btn.textContent || btn.innerText;
-      return text && text.includes('Sales channels');
-    }) || Array.from(document.querySelectorAll('span')).find(span => {
-      const text = span.textContent || span.innerText;
-      return text && text.trim() === 'Sales channels';
-    })?.closest('button');
-    
-    if (!document.getElementById('shop-context-custom-name') && salesChannelsExists) {
-      console.log('[Shop Context] Sales channels appeared, injecting custom name');
-      injectCustomStoreName();
+    // Check if logo needs to be replaced or updated with custom name
+    const logoWrapper = document.querySelector('[class*="_ShopifyLogoWrapper"]');
+    if (logoWrapper) {
+      // Only replace if it doesn't already have our custom logo or if we need to check for updates
+      if (!logoWrapper.querySelector('#shop-context-custom-logo')) {
+        replaceLogoWithShopName();
+      }
     }
   }).observe(document, { subtree: true, childList: true });
 })();

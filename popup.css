@@ -149,6 +149,12 @@ h3 {
   margin-top: 0;
 }
 
+.development-color-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e3e5;
+}
+
 .color-label {
   display: block;
   font-size: 12px;
@@ -218,6 +224,25 @@ h3 {
   cursor: not-allowed;
 }
 
+.reset-link-container {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e3e5;
+  text-align: center;
+}
+
+.reset-link {
+  font-size: 12px;
+  color: #6d7175;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.reset-link:hover {
+  color: #008060;
+  text-decoration: underline;
+}
+
 .controls {
   background: white;
   border-radius: 8px;
@@ -239,12 +264,16 @@ h3 {
   transition: all 0.2s;
 }
 
-.toggle-button.development {
+.toggle-button.default {
   background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
 }
 
+.toggle-button.development {
+  background: linear-gradient(135deg, #002407 0%, #003509 100%);
+}
+
 .toggle-button.production {
-  background: linear-gradient(135deg, #4B0082 0%, #6a0dad 100%);
+  background: linear-gradient(135deg, #24003D 0%, #360059 100%);
 }
 
 .toggle-button.disabled {

@@ -10,7 +10,7 @@ A Chrome extension that helps you instantly identify whether you're working on a
 - 🖱️ **Right-Click Context Menu**: Toggle store type directly from any Shopify page
 - 💾 **Persistent Settings**: All settings are saved and remembered across browser sessions
 
-![ShopContext Extension Screenshot](screenshot.png)
+![ShopContext Extension Demo](demo.gif)
 
 ## Installation
 

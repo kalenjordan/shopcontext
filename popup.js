@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  // Default colors
+  const DEFAULT_PROD_COLOR = '#24003D';
+  const DEFAULT_DEV_COLOR = '#002407';
+  
   const elements = {
     currentUrl: document.getElementById('current-url'),
     toggleBtn: document.getElementById('toggle-btn'),
@@ -6,7 +10,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveNameBtn: document.getElementById('save-name'),
     prodColorInput: document.getElementById('prod-color'),
     prodColorText: document.getElementById('prod-color-text'),
-    saveColorBtn: document.getElementById('save-color')
+    saveProdColorBtn: document.getElementById('save-prod-color'),
+    devColorInput: document.getElementById('dev-color'),
+    devColorText: document.getElementById('dev-color-text'),
+    saveDevColorBtn: document.getElementById('save-dev-color'),
+    resetColorsLink: document.getElementById('reset-colors')
   };
   
   let currentTabId;
@@ -60,7 +68,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       elements.saveNameBtn.disabled = true;
       elements.prodColorInput.disabled = true;
       elements.prodColorText.disabled = true;
-      elements.saveColorBtn.disabled = true;
+      elements.saveProdColorBtn.disabled = true;
+      elements.devColorInput.disabled = true;
+      elements.devColorText.disabled = true;
+      elements.saveDevColorBtn.disabled = true;
+      elements.resetColorsLink.style.pointerEvents = 'none';
+      elements.resetColorsLink.style.opacity = '0.5';
       return;
     }
     
@@ -75,13 +88,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.saveNameBtn.disabled = false;
     elements.prodColorInput.disabled = false;
     elements.prodColorText.disabled = false;
-    elements.saveColorBtn.disabled = false;
+    elements.saveProdColorBtn.disabled = false;
+    elements.devColorInput.disabled = false;
+    elements.devColorText.disabled = false;
+    elements.saveDevColorBtn.disabled = false;
+    elements.resetColorsLink.style.pointerEvents = '';
+    elements.resetColorsLink.style.opacity = '';
     
     // Get store info from storage
-    const data = await chrome.storage.local.get(['currentStore', 'overrides', 'customNames', 'globalProductionColor']);
+    const data = await chrome.storage.local.get(['currentStore', 'overrides', 'customNames', 'globalProductionColor', 'globalDevelopmentColor']);
     const overrides = data.overrides || {};
     const customNames = data.customNames || {};
-    const globalProductionColor = data.globalProductionColor || '#4B0082';
+    const globalProductionColor = data.globalProductionColor || DEFAULT_PROD_COLOR;
+    const globalDevelopmentColor = data.globalDevelopmentColor || DEFAULT_DEV_COLOR;
     
     // Load custom name if exists
     if (customNames[currentDomain]) {
@@ -94,25 +113,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.prodColorInput.value = globalProductionColor;
     elements.prodColorText.value = globalProductionColor;
     
-    // Determine store type
-    let isDev = true; // Default to dev
+    // Load global development color
+    elements.devColorInput.value = globalDevelopmentColor;
+    elements.devColorText.value = globalDevelopmentColor.toUpperCase();
+    
+    // Determine store mode
+    let mode = 'default'; // Default to 'default' mode
     if (overrides[currentDomain] !== undefined) {
-      isDev = overrides[currentDomain];
+      // Handle legacy boolean values
+      if (typeof overrides[currentDomain] === 'boolean') {
+        mode = overrides[currentDomain] ? 'development' : 'production';
+      } else {
+        mode = overrides[currentDomain];
+      }
     } else if (data.currentStore && data.currentStore.url === currentUrl) {
-      isDev = data.currentStore.isDevelopment;
+      // Handle both new mode and legacy isDevelopment
+      if (data.currentStore.mode) {
+        mode = data.currentStore.mode;
+      } else if (data.currentStore.isDevelopment !== undefined) {
+        mode = data.currentStore.isDevelopment ? 'development' : 'production';
+      }
     }
     
-    updateStoreTypeDisplay(isDev);
+    updateStoreTypeDisplay(mode);
   }
   
   // Update store type display
-  function updateStoreTypeDisplay(isDev) {
-    if (isDev) {
-      elements.toggleBtn.textContent = '🛠️  Development Store';
-      elements.toggleBtn.className = 'toggle-button development';
-    } else {
-      elements.toggleBtn.textContent = '🚀  Production Store';
-      elements.toggleBtn.className = 'toggle-button production';
+  function updateStoreTypeDisplay(mode) {
+    switch(mode) {
+      case 'development':
+        elements.toggleBtn.textContent = '🛠️  Development Store';
+        elements.toggleBtn.className = 'toggle-button development';
+        break;
+      case 'production':
+        elements.toggleBtn.textContent = '🚀  Production Store';
+        elements.toggleBtn.className = 'toggle-button production';
+        break;
+      case 'default':
+      default:
+        elements.toggleBtn.textContent = '🏪  Default Mode';
+        elements.toggleBtn.className = 'toggle-button default';
+        break;
     }
   }
   
@@ -167,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   
-  // Sync color picker with text input
+  // Sync color picker with text input for production
   elements.prodColorInput.addEventListener('input', (e) => {
     elements.prodColorText.value = e.target.value.toUpperCase();
   });
@@ -179,10 +220,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   
-  // Add Enter key support for color text input
+  // Add Enter key support for production color text input
   elements.prodColorText.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      elements.saveColorBtn.click();
+      elements.saveProdColorBtn.click();
+    }
+  });
+  
+  // Sync color picker with text input for development
+  elements.devColorInput.addEventListener('input', (e) => {
+    elements.devColorText.value = e.target.value.toUpperCase();
+  });
+  
+  elements.devColorText.addEventListener('input', (e) => {
+    const color = e.target.value;
+    if (/^#[0-9A-F]{6}$/i.test(color)) {
+      elements.devColorInput.value = color;
+    }
+  });
+  
+  // Add Enter key support for development color text input
+  elements.devColorText.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      elements.saveDevColorBtn.click();
     }
   });
   
@@ -194,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   // Save global production color
-  elements.saveColorBtn.addEventListener('click', async () => {
+  elements.saveProdColorBtn.addEventListener('click', async () => {
     const color = elements.prodColorInput.value;
     await chrome.storage.local.set({ globalProductionColor: color });
     
@@ -203,17 +263,80 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const tab of tabs) {
       try {
         await chrome.tabs.sendMessage(tab.id, { 
-          action: 'updateProductionColor', 
+          action: 'updateStoreColor', 
+          colorType: 'production',
           color: color
         });
       } catch {}
     }
     
     // Show feedback without changing button text (to avoid layout shift)
-    const originalText = elements.saveColorBtn.textContent;
-    elements.saveColorBtn.style.background = '#00a878';
+    elements.saveProdColorBtn.style.background = '#00a878';
     setTimeout(() => {
-      elements.saveColorBtn.style.background = '';
+      elements.saveProdColorBtn.style.background = '';
+    }, 1000);
+  });
+  
+  // Save global development color
+  elements.saveDevColorBtn.addEventListener('click', async () => {
+    const color = elements.devColorInput.value;
+    await chrome.storage.local.set({ globalDevelopmentColor: color });
+    
+    // Notify ALL tabs to update the color
+    const tabs = await chrome.tabs.query({ url: ["https://*.myshopify.com/*", "https://*.shopify.com/*", "https://*.myshopify.io/*"] });
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { 
+          action: 'updateStoreColor', 
+          colorType: 'development',
+          color: color
+        });
+      } catch {}
+    }
+    
+    // Show feedback without changing button text (to avoid layout shift)
+    elements.saveDevColorBtn.style.background = '#00a878';
+    setTimeout(() => {
+      elements.saveDevColorBtn.style.background = '';
+    }, 1000);
+  });
+  
+  // Reset both colors to defaults
+  elements.resetColorsLink.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    // Update UI
+    elements.prodColorInput.value = DEFAULT_PROD_COLOR;
+    elements.prodColorText.value = DEFAULT_PROD_COLOR;
+    elements.devColorInput.value = DEFAULT_DEV_COLOR;
+    elements.devColorText.value = DEFAULT_DEV_COLOR.toUpperCase();
+    
+    // Save to storage
+    await chrome.storage.local.set({ 
+      globalProductionColor: DEFAULT_PROD_COLOR,
+      globalDevelopmentColor: DEFAULT_DEV_COLOR
+    });
+    
+    // Notify ALL tabs to update the colors
+    const tabs = await chrome.tabs.query({ url: ["https://*.myshopify.com/*", "https://*.shopify.com/*", "https://*.myshopify.io/*"] });
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { 
+          action: 'updateStoreColor', 
+          colorType: 'both',
+          prodColor: DEFAULT_PROD_COLOR,
+          devColor: DEFAULT_DEV_COLOR
+        });
+      } catch {}
+    }
+    
+    // Show feedback
+    const originalText = elements.resetColorsLink.textContent;
+    elements.resetColorsLink.textContent = 'Reset!';
+    elements.resetColorsLink.style.color = '#00a878';
+    setTimeout(() => {
+      elements.resetColorsLink.textContent = originalText;
+      elements.resetColorsLink.style.color = '';
     }, 1000);
   });
   
