@@ -458,3 +458,22 @@ h3 {
   font-style: italic;
   margin-top: 8px;
 }
+
+.console-logging-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e1e3e5;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #202223;
+}
+
+.checkbox-input {
+  cursor: pointer;
+}

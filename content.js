@@ -1,5 +1,13 @@
 (() => {
   let currentStoreMode = 'default'; // 'default', 'development', or 'production'
+  let consoleLoggingEnabled = false;
+
+  // Helper function for conditional logging
+  function log(...args) {
+    if (consoleLoggingEnabled) {
+      console.log(...args);
+    }
+  }
 
   // Get domain from current URL
   function getCurrentDomain() {
@@ -171,7 +179,7 @@
     // Find the logo wrapper
     const logoWrapper = document.querySelector('[class*="_ShopifyLogoWrapper"]');
     if (!logoWrapper) {
-      console.log('[Shop Context] Logo wrapper not found');
+      log('[Shop Context] Logo wrapper not found');
       return;
     }
 
@@ -188,7 +196,7 @@
 
     // If there's a custom name, show it
     if (customName && customName.trim() !== '') {
-      console.log(`[Shop Context] Replacing logo with custom name: ${customName}`);
+      log(`[Shop Context] Replacing logo with custom name: ${customName}`);
       
       // Replace the logo wrapper content with custom name text
       logoWrapper.innerHTML = `
@@ -207,7 +215,7 @@
     } else {
       // No custom name - restore the original Shopify logo if it was replaced
       if (logoWrapper.querySelector('#shop-context-custom-logo') && originalLogoHTML) {
-        console.log('[Shop Context] Restoring original Shopify logo');
+        log('[Shop Context] Restoring original Shopify logo');
         logoWrapper.innerHTML = originalLogoHTML;
       }
     }
@@ -387,6 +395,10 @@
       return;
     }
 
+    // Load console logging setting
+    const loggingData = await chrome.storage.local.get('consoleLoggingEnabled');
+    consoleLoggingEnabled = loggingData.consoleLoggingEnabled || false;
+
     // Check for saved state for this store
     const domain = getCurrentDomain();
     const savedState = await getManualOverride();
@@ -440,6 +452,8 @@
     } else if (request.action === 'updateProductionColor' || request.action === 'updateStoreColor') {
       // Re-apply the indicators with the new color
       applyStoreTypeIndicators(currentStoreMode);
+    } else if (request.action === 'updateConsoleLogging') {
+      consoleLoggingEnabled = request.enabled;
     }
     sendResponse({ success: true });
   });

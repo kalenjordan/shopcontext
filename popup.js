@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     devColorInput: document.getElementById('dev-color'),
     devColorText: document.getElementById('dev-color-text'),
     saveDevColorBtn: document.getElementById('save-dev-color'),
-    resetColorsLink: document.getElementById('reset-colors')
+    resetColorsLink: document.getElementById('reset-colors'),
+    consoleLoggingCheckbox: document.getElementById('console-logging')
   };
   
   let currentTabId;
@@ -96,11 +97,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.resetColorsLink.style.opacity = '';
     
     // Get store info from storage
-    const data = await chrome.storage.local.get(['currentStore', 'overrides', 'customNames', 'globalProductionColor', 'globalDevelopmentColor']);
+    const data = await chrome.storage.local.get(['currentStore', 'overrides', 'customNames', 'globalProductionColor', 'globalDevelopmentColor', 'consoleLoggingEnabled']);
     const overrides = data.overrides || {};
     const customNames = data.customNames || {};
     const globalProductionColor = data.globalProductionColor || DEFAULT_PROD_COLOR;
     const globalDevelopmentColor = data.globalDevelopmentColor || DEFAULT_DEV_COLOR;
+    const consoleLoggingEnabled = data.consoleLoggingEnabled || false;
     
     // Load custom name if exists
     if (customNames[currentDomain]) {
@@ -116,6 +118,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load global development color
     elements.devColorInput.value = globalDevelopmentColor;
     elements.devColorText.value = globalDevelopmentColor.toUpperCase();
+    
+    // Load console logging setting
+    elements.consoleLoggingCheckbox.checked = consoleLoggingEnabled;
     
     // Determine store mode
     let mode = 'default'; // Default to 'default' mode
@@ -203,7 +208,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Reload status after toggle
       setTimeout(loadCurrentStatus, 100);
     } catch (error) {
-      console.error('Failed to toggle:', error);
+      // Get console logging setting and only log if enabled
+      const data = await chrome.storage.local.get('consoleLoggingEnabled');
+      if (data.consoleLoggingEnabled) {
+        console.error('Failed to toggle:', error);
+      }
     }
   });
   
@@ -370,6 +379,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => {
       elements.saveNameBtn.style.background = '';
     }, 1000);
+  });
+  
+  // Console logging checkbox handler
+  elements.consoleLoggingCheckbox.addEventListener('change', async () => {
+    const enabled = elements.consoleLoggingCheckbox.checked;
+    await chrome.storage.local.set({ consoleLoggingEnabled: enabled });
+    
+    // Notify all tabs to update their logging behavior
+    const tabs = await chrome.tabs.query({ url: ["https://*.myshopify.com/*", "https://*.shopify.com/*", "https://*.myshopify.io/*"] });
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { 
+          action: 'updateConsoleLogging', 
+          enabled: enabled
+        });
+      } catch {}
+    }
   });
   
   // Initial load
