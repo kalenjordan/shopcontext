@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  // Display version from manifest
+  const manifest = chrome.runtime.getManifest();
+  const versionElement = document.getElementById('version');
+  if (versionElement) {
+    versionElement.textContent = `v${manifest.version}`;
+  }
+  
   // Default colors
   const DEFAULT_PROD_COLOR = '#24003D';
   const DEFAULT_DEV_COLOR = '#002407';
@@ -218,14 +225,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   
   // Sync color picker with text input for production
-  elements.prodColorInput.addEventListener('input', (e) => {
+  elements.prodColorInput.addEventListener('input', async (e) => {
     elements.prodColorText.value = e.target.value.toUpperCase();
+    
+    // Send real-time preview to current tab
+    if (currentTabId) {
+      console.log('[ShopContext] Sending production color preview:', e.target.value, 'to tab:', currentTabId);
+      try {
+        await chrome.tabs.sendMessage(currentTabId, { 
+          action: 'previewStoreColor', 
+          colorType: 'production',
+          color: e.target.value
+        });
+      } catch (err) {
+        console.error('[ShopContext] Error sending preview:', err);
+      }
+    } else {
+      console.log('[ShopContext] No currentTabId available for preview');
+    }
   });
   
-  elements.prodColorText.addEventListener('input', (e) => {
+  elements.prodColorText.addEventListener('input', async (e) => {
     const color = e.target.value;
     if (/^#[0-9A-F]{6}$/i.test(color)) {
       elements.prodColorInput.value = color;
+      
+      // Send real-time preview to current tab
+      if (currentTabId) {
+        try {
+          await chrome.tabs.sendMessage(currentTabId, { 
+            action: 'previewStoreColor', 
+            colorType: 'production',
+            color: color
+          });
+        } catch {}
+      }
     }
   });
   
@@ -237,14 +271,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   // Sync color picker with text input for development
-  elements.devColorInput.addEventListener('input', (e) => {
+  elements.devColorInput.addEventListener('input', async (e) => {
     elements.devColorText.value = e.target.value.toUpperCase();
+    
+    // Send real-time preview to current tab
+    if (currentTabId) {
+      console.log('[ShopContext] Sending development color preview:', e.target.value, 'to tab:', currentTabId);
+      try {
+        await chrome.tabs.sendMessage(currentTabId, { 
+          action: 'previewStoreColor', 
+          colorType: 'development',
+          color: e.target.value
+        });
+      } catch (err) {
+        console.error('[ShopContext] Error sending preview:', err);
+      }
+    } else {
+      console.log('[ShopContext] No currentTabId available for preview');
+    }
   });
   
-  elements.devColorText.addEventListener('input', (e) => {
+  elements.devColorText.addEventListener('input', async (e) => {
     const color = e.target.value;
     if (/^#[0-9A-F]{6}$/i.test(color)) {
       elements.devColorInput.value = color;
+      
+      // Send real-time preview to current tab
+      if (currentTabId) {
+        try {
+          await chrome.tabs.sendMessage(currentTabId, { 
+            action: 'previewStoreColor', 
+            colorType: 'development',
+            color: color
+          });
+        } catch {}
+      }
     }
   });
   

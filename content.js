@@ -452,6 +452,22 @@
     } else if (request.action === 'updateProductionColor' || request.action === 'updateStoreColor') {
       // Re-apply the indicators with the new color
       applyStoreTypeIndicators(currentStoreMode);
+    } else if (request.action === 'previewStoreColor') {
+      // Preview color change without saving
+      console.log('[ShopContext] Received preview request:', request.colorType, request.color, 'Current mode:', currentStoreMode);
+      // Use the same selector as applyStoreTypeIndicators
+      const header = document.querySelector('[class*="Polaris-TopBar_TopBar"], [class*="TopBar_TopBar"], nav[aria-label="Main menu"], header');
+      console.log('[ShopContext] Header found:', !!header);
+      if (header) {
+        // Only apply preview if the current mode matches the color type being previewed
+        if ((request.colorType === 'production' && currentStoreMode === 'production') ||
+            (request.colorType === 'development' && currentStoreMode === 'development')) {
+          console.log('[ShopContext] Applying preview color:', request.color);
+          header.style.backgroundColor = request.color;
+        } else {
+          console.log('[ShopContext] Mode mismatch - not applying preview');
+        }
+      }
     } else if (request.action === 'updateConsoleLogging') {
       consoleLoggingEnabled = request.enabled;
     }

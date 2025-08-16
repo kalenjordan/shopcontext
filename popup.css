@@ -17,6 +17,13 @@ h2 {
   font-weight: 600;
 }
 
+.version {
+  font-size: 12px;
+  color: #6d7175;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
 h3 {
   margin: 16px 0 8px 0;
   font-size: 14px;
@@ -224,11 +231,13 @@ h3 {
   cursor: not-allowed;
 }
 
-.reset-link-container {
+.bottom-controls {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #e1e3e5;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .reset-link {
@@ -262,6 +271,7 @@ h3 {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: 12px;
 }
 
 .toggle-button.default {
@@ -291,13 +301,6 @@ h3 {
   cursor: not-allowed;
 }
 
-.hint {
-  font-size: 11px;
-  color: #6d7175;
-  font-style: italic;
-  margin-top: 10px;
-  text-align: center;
-}
 
 .manual-override {
   padding-top: 12px;
@@ -459,18 +462,13 @@ h3 {
   margin-top: 8px;
 }
 
-.console-logging-section {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e1e3e5;
-}
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   color: #202223;
 }
 
