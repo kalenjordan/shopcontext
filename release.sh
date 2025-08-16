@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Release script for ShopContext
-# Usage: ./release.sh <new_version>
-# Example: ./release.sh 1.0.3
+# Usage: ./release.sh [new_version]
+# Example: ./release.sh        # Auto-increments patch version
+# Example: ./release.sh 1.0.3  # Uses specified version
 
 set -e  # Exit on error
 
@@ -30,20 +31,45 @@ print_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
-# Check if version argument is provided
-if [ $# -eq 0 ]; then
-    print_error "No version number provided"
-    echo "Usage: $0 <new_version>"
-    echo "Example: $0 1.0.3"
+# Function to increment version number
+increment_version() {
+    local version=$1
+    local major=$(echo $version | cut -d. -f1)
+    local minor=$(echo $version | cut -d. -f2)
+    local patch=$(echo $version | cut -d. -f3)
+    
+    # Increment patch version by default
+    patch=$((patch + 1))
+    
+    echo "$major.$minor.$patch"
+}
+
+# Get current version from manifest.json first
+if [ ! -f "manifest.json" ]; then
+    print_error "manifest.json not found"
     exit 1
 fi
 
-NEW_VERSION=$1
+OLD_VERSION=$(grep '"version"' manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
 
-# Validate version format (basic semantic versioning)
-if ! [[ $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    print_error "Invalid version format. Please use semantic versioning (e.g., 1.0.3)"
+if [ -z "$OLD_VERSION" ]; then
+    print_error "Could not extract version from manifest.json"
     exit 1
+fi
+
+# Check if version argument is provided
+if [ $# -eq 0 ]; then
+    # No version provided, auto-increment
+    NEW_VERSION=$(increment_version "$OLD_VERSION")
+    print_info "Auto-incrementing version from $OLD_VERSION to $NEW_VERSION"
+else
+    NEW_VERSION=$1
+    
+    # Validate version format (basic semantic versioning)
+    if ! [[ $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        print_error "Invalid version format. Please use semantic versioning (e.g., 1.0.3)"
+        exit 1
+    fi
 fi
 
 # Check if claude CLI is available
@@ -85,19 +111,6 @@ if [[ "$CURRENT_BRANCH" != "main" ]] && [[ "$CURRENT_BRANCH" != "master" ]]; the
         echo "Aborting release"
         exit 1
     fi
-fi
-
-# Get current version from manifest.json
-if [ ! -f "manifest.json" ]; then
-    print_error "manifest.json not found"
-    exit 1
-fi
-
-OLD_VERSION=$(grep '"version"' manifest.json | sed 's/.*"version": *"\([^"]*\)".*/\1/')
-
-if [ -z "$OLD_VERSION" ]; then
-    print_error "Could not extract version from manifest.json"
-    exit 1
 fi
 
 print_info "Current version: $OLD_VERSION"
