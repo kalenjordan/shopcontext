@@ -173,6 +173,35 @@
 
   // Store the original logo HTML
   let originalLogoHTML = null;
+  
+  // Shared function to find the header element (ClickMask or TopBar)
+  function findHeaderElement() {
+    // Look for ClickMask first (preferred element for styling)
+    let clickMask = document.querySelector('[class*="ClickMask"][class*="_ClickMask_"]');
+    if (!clickMask) {
+      clickMask = document.querySelector('[class*="ClickMask"]');
+    }
+    
+    // Look for TopBar as fallback
+    let topBar = document.querySelector('[class*="TopBar"][class*="_TopBar_"]');
+    if (!topBar) {
+      topBar = document.querySelector('[class*="TopBar"]');
+    }
+    
+    return {
+      clickMask: clickMask,
+      topBar: topBar,
+      element: clickMask || topBar  // Preferred element to style
+    };
+  }
+  
+  // Shared function to convert hex to rgba
+  function hexToRgba(hex, opacity) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
 
   // Function to replace Shopify logo with shop name or restore it
   async function replaceLogoWithShopName() {
@@ -237,19 +266,11 @@
     }
     // If mode is 'default', customColor remains null and no styling will be applied
 
-    // Convert hex to rgba with opacity
-    const hexToRgba = (hex, opacity) => {
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-    };
+    // Use shared function for hex to rgba conversion
 
-    // Find the TopBar first
-    let topBar = document.querySelector('[class*="TopBar"][class*="_TopBar_"]');
-    if (!topBar) {
-      topBar = document.querySelector('[class*="TopBar"]');
-    }
+    // Find the header elements using shared function
+    const headerElements = findHeaderElement();
+    let { clickMask, topBar } = headerElements;
     if (!topBar) {
       const themeContainers = document.querySelectorAll('.Polaris-ThemeProvider--themeContainer, .themeprovider');
       for (const container of themeContainers) {
@@ -261,15 +282,15 @@
       }
     }
 
-    // Find the ClickMask element - search more thoroughly
-    let clickMask = null;
-
-    // Strategy 1: Look for any element with ClickMask in its class
-    const allElements = document.querySelectorAll('*');
-    for (const element of allElements) {
-      if (element.className && typeof element.className === 'string' && element.className.includes('ClickMask')) {
-        clickMask = element;
-        break;
+    // Additional thorough search for ClickMask if not found by shared function
+    if (!clickMask) {
+      // Strategy 1: Look for any element with ClickMask in its class
+      const allElements = document.querySelectorAll('*');
+      for (const element of allElements) {
+        if (element.className && typeof element.className === 'string' && element.className.includes('ClickMask')) {
+          clickMask = element;
+          break;
+        }
       }
     }
 
@@ -455,15 +476,19 @@
     } else if (request.action === 'previewStoreColor') {
       // Preview color change without saving
       console.log('[ShopContext] Received preview request:', request.colorType, request.color, 'Current mode:', currentStoreMode);
-      // Use the same selector as applyStoreTypeIndicators
-      const header = document.querySelector('[class*="Polaris-TopBar_TopBar"], [class*="TopBar_TopBar"], nav[aria-label="Main menu"], header');
-      console.log('[ShopContext] Header found:', !!header);
-      if (header) {
+      
+      // Find the header elements using shared function
+      const headerElements = findHeaderElement();
+      const { clickMask, topBar, element: targetElement } = headerElements;
+      
+      console.log('[ShopContext] ClickMask found:', !!clickMask, 'TopBar found:', !!topBar);
+      if (targetElement) {
         // Only apply preview if the current mode matches the color type being previewed
         if ((request.colorType === 'production' && currentStoreMode === 'production') ||
             (request.colorType === 'development' && currentStoreMode === 'development')) {
-          console.log('[ShopContext] Applying preview color:', request.color);
-          header.style.backgroundColor = request.color;
+          const bgColor = hexToRgba(request.color, 0.85);
+          console.log('[ShopContext] Applying preview color:', bgColor, 'to', clickMask ? 'ClickMask' : 'TopBar');
+          targetElement.style.setProperty('background-color', bgColor, 'important');
         } else {
           console.log('[ShopContext] Mode mismatch - not applying preview');
         }
