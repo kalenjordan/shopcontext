@@ -217,12 +217,21 @@ cp "$TEMP_CHANGELOG" CHANGELOG.md
 
 # Show the changes using git diff
 echo ""
-print_info "Generated changelog entry:"
+print_info "Generated changelog changes:"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-# Use git diff to show what changed
-git diff --no-index --no-prefix --color=always CHANGELOG.md 2>/dev/null | tail -n +5 || git diff CHANGELOG.md
+# Show the diff of what changed
+git diff CHANGELOG.md | grep "^+" | grep -v "^+++" | sed 's/^+/  /' || {
+    # If git diff doesn't work, show the new entry directly
+    print_info "New version entry:"
+    sed -n "/## \[$NEW_VERSION\]/,/## \[$OLD_VERSION\]/p" CHANGELOG.md | head -n -1
+}
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Also show the full changelog for verification
+print_info "Full CHANGELOG.md (first 40 lines):"
+head -n 40 CHANGELOG.md
 echo ""
 
 # Clean up temporary file
