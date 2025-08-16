@@ -166,12 +166,25 @@ Here is the current CHANGELOG.md content:
 $(cat CHANGELOG.md)
 \`\`\`
 
+IMPORTANT: This changelog is for END USERS of the Chrome extension. Only include changes that affect the user experience:
+- New features users can use
+- UI/UX improvements users will notice
+- Bug fixes that affect users
+- Performance improvements users will experience
+
+DO NOT include:
+- Build scripts, release scripts, or development tooling
+- Internal code refactoring that doesn't change user experience
+- Documentation updates (README, privacy policy, etc.)
+- Development-only changes
+- Changes to project configuration files
+
 Please output ONLY the complete updated CHANGELOG.md content with the new version section added. 
 The new section should:
 1. Be added right after the "# Changelog" header and description line
 2. Follow the format: ## [$NEW_VERSION] - $TODAY
 3. Group changes into categories like: Added, Changed, Fixed, Removed (only include categories that have changes)
-4. Be based on the actual commits, not generic descriptions
+4. Focus on user-facing changes from the commits
 5. Keep all existing version entries intact
 
 Output the complete file content, nothing else.
