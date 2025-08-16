@@ -7,6 +7,18 @@
 
 set -e  # Exit on error
 
+# Cleanup function for interrupts
+cleanup_on_exit() {
+    # Restore files using git
+    git checkout -- manifest.json CHANGELOG.md 2>/dev/null || true
+    echo ""
+    print_warning "Release aborted"
+    exit 1
+}
+
+# Set trap for Ctrl+C
+trap cleanup_on_exit INT
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -133,8 +145,7 @@ fi
 
 # Update manifest.json with new version
 print_info "Updating manifest.json with version $NEW_VERSION"
-sed -i.bak "s/\"version\": *\"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" manifest.json
-rm manifest.json.bak
+sed -i '' "s/\"version\": *\"$OLD_VERSION\"/\"version\": \"$NEW_VERSION\"/" manifest.json
 
 # Get today's date in YYYY-MM-DD format
 TODAY=$(date +%Y-%m-%d)
@@ -201,24 +212,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Save the original changelog for comparison
-cp CHANGELOG.md CHANGELOG.md.backup
-
 # Update the changelog file
 cp "$TEMP_CHANGELOG" CHANGELOG.md
 
-# Show the changes
+# Show the changes using git diff
 echo ""
 print_info "Generated changelog entry:"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-# Show just the new section (approximate by showing the diff)
-if command -v diff &> /dev/null; then
-    diff --unified=0 CHANGELOG.md.backup CHANGELOG.md | grep "^+" | grep -v "^+++" | sed 's/^+//' || true
-else
-    # Fallback: show first 30 lines which should include the new section
-    head -n 30 CHANGELOG.md
-fi
+# Use git diff to show what changed
+git diff --no-index --no-prefix --color=always CHANGELOG.md 2>/dev/null | tail -n +5 || git diff CHANGELOG.md
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -228,7 +231,23 @@ rm "$TEMP_CHANGELOG"
 # Ask for confirmation
 print_warning "Please review the changelog above"
 echo ""
-read -p "Do you want to proceed with the release? (Press Enter to continue, Ctrl+C to abort): "
+echo "Press Enter to proceed with the release, ESC or Ctrl+C to abort"
+
+# Read single character with support for ESC key
+while true; do
+    read -rsn1 key
+    if [[ $key == $'\x1b' ]]; then
+        # ESC key pressed
+        echo ""
+        print_warning "Release aborted by user (ESC)"
+        # Restore original files using git
+        git checkout -- manifest.json CHANGELOG.md 2>/dev/null || true
+        exit 0
+    elif [[ $key == "" ]]; then
+        # Enter key pressed
+        break
+    fi
+done
 
 # If we get here, user wants to proceed
 print_info "Proceeding with release..."
@@ -261,5 +280,4 @@ echo ""
 echo "Or push everything at once with:"
 echo "  git push origin $CURRENT_BRANCH --tags"
 
-# Clean up backup
-rm -f CHANGELOG.md.backup
+# No backup files needed - we use git!
