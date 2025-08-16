@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shop Context",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "Shows whether a Shopify store is a development or production store",
   "permissions": [
     "activeTab",

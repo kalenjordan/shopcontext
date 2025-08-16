@@ -147,7 +147,7 @@ echo ""
 TEMP_CHANGELOG=$(mktemp)
 
 # Call Claude to update the changelog
-claude --no-chat --max-tokens 8192 << EOF > "$TEMP_CHANGELOG" 2>&1
+claude --print << EOF > "$TEMP_CHANGELOG" 2>&1
 You are updating the CHANGELOG.md file for the ShopContext browser extension.
 
 Current version being released: $NEW_VERSION
